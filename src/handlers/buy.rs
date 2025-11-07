@@ -1,15 +1,16 @@
+use crate::errors::TwinError;
 use crate::models::*;
 use crate::state::AppState;
 use actix_web::{HttpResponse, Responder, post, web};
 use std::collections::VecDeque;
 use std::sync::atomic::Ordering;
 
-async fn handle_buy(
+pub async fn handle_buy(
     state: &AppState,
     username: String,
     price: u64,
     volume: u64,
-) -> Result<(), String> {
+) -> Result<(), TwinError> {
     let mut volume = volume;
 
     if volume == 0 {
@@ -17,7 +18,7 @@ async fn handle_buy(
     }
 
     if username.is_empty() {
-        return Err("username cannot be empty".to_string());
+        return Err(TwinError::MissingUsername);
     }
 
     let mut to_allocate = 0;
@@ -66,7 +67,7 @@ pub async fn buy(state: web::Data<AppState>, req: web::Json<BuyRequest>) -> impl
 
     match handle_buy(&state, username, price, volume).await {
         Ok(_) => HttpResponse::Ok().finish(),
-        Err(msg) => HttpResponse::BadRequest().body(msg),
+        Err(_) => HttpResponse::BadRequest().body("username can not be empty"),
     }
 }
 

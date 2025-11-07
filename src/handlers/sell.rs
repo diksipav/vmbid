@@ -2,7 +2,7 @@ use crate::models::*;
 use crate::state::AppState;
 use actix_web::{HttpResponse, Responder, post, web};
 
-async fn handle_sell(state: &AppState, supply: u64) {
+pub async fn handle_sell(state: &AppState, supply: u64) {
     let mut supply = supply;
 
     if supply == 0 {

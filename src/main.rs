@@ -1,8 +1,9 @@
 use actix_web::{App, HttpServer, web};
 
-mod handlers;
-mod models;
-mod state;
+pub mod errors;
+pub mod handlers;
+pub mod models;
+pub mod state;
 
 use handlers::{allocation::allocation, buy::buy, sell::sell};
 use state::AppState;
