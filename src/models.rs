@@ -2,7 +2,7 @@ use serde::Deserialize;
 
 #[derive(Deserialize)]
 pub struct BuyRequest {
-    pub username: String,
+    pub username: String, // TODO: Can username be any UTF-8 string?
     pub volume: u64,
     pub price: u64,
 }

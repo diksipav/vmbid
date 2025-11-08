@@ -11,14 +11,13 @@ pub async fn handle_buy(
     price: u64,
     volume: u64,
 ) -> Result<(), TwinError> {
-    let mut volume = volume;
-
-    if volume == 0 {
-        return Ok(());
-    }
-
     if username.is_empty() {
         return Err(TwinError::MissingUsername);
+    }
+
+    let mut volume = volume;
+    if volume == 0 {
+        return Ok(());
     }
 
     let mut to_allocate = 0;
