@@ -23,7 +23,7 @@ pub async fn handle_buy(
     let mut to_allocate = 0;
 
     {
-        let mut supply_guard = state.state.supply.lock().unwrap();
+        let mut supply_guard = state.supply.lock().unwrap();
         if *supply_guard > 0 {
             let available = *supply_guard;
             to_allocate = volume.min(available);
@@ -33,12 +33,12 @@ pub async fn handle_buy(
     }
 
     if to_allocate > 0 {
-        let mut allocations_guard = state.state.allocations.lock().unwrap();
+        let mut allocations_guard = state.allocations.lock().unwrap();
         *allocations_guard.entry(username.clone()).or_insert(0) += to_allocate;
     }
 
     if volume > 0 {
-        let seq = state.state.seq.fetch_add(1, Ordering::Relaxed);
+        let seq = state.seq.fetch_add(1, Ordering::Relaxed);
         let bid = Bid {
             username,
             price,
@@ -46,7 +46,7 @@ pub async fn handle_buy(
             seq,
         };
 
-        let mut bids_guard = state.state.bids.lock().unwrap();
+        let mut bids_guard = state.bids.lock().unwrap();
         bids_guard
             .entry(price)
             .or_insert_with(VecDeque::new)
@@ -99,7 +99,7 @@ mod tests {
         assert!(result.is_ok());
 
         let expected = create_bids("u1".to_string(), 3, 100);
-        let bids = state.state.bids.lock().unwrap();
+        let bids = state.bids.lock().unwrap();
         assert_eq!(*bids, expected);
     }
 
@@ -107,7 +107,7 @@ mod tests {
     async fn test_buy_with_supply_immediate_allocation() {
         let state = AppState::default();
         // Set initial supply
-        *state.state.supply.lock().unwrap() = 150;
+        *state.supply.lock().unwrap() = 150;
 
         let data = web::Data::new(state.clone());
 
@@ -115,11 +115,11 @@ mod tests {
         assert!(result.is_ok());
 
         // Supply is updated. No bids.
-        assert_eq!(state.state.bids.lock().unwrap().len(), 0);
-        assert_eq!(*state.state.supply.lock().unwrap(), 50);
+        assert_eq!(state.bids.lock().unwrap().len(), 0);
+        assert_eq!(*state.supply.lock().unwrap(), 50);
 
         // Allocation is created
-        let allocations = state.state.allocations.lock().unwrap();
+        let allocations = state.allocations.lock().unwrap();
         assert_eq!(allocations.len(), 1);
         let allocation = allocations.get("u1").unwrap();
         assert_eq!(*allocation, 100);
@@ -129,7 +129,7 @@ mod tests {
     async fn test_buy_with_partial_supply() {
         let state = AppState::default();
         // Set initial supply
-        *state.state.supply.lock().unwrap() = 50;
+        *state.supply.lock().unwrap() = 50;
 
         let data = web::Data::new(state.clone());
 
@@ -140,10 +140,10 @@ mod tests {
         // so both allocation and bid are created.
         // Supply is emptied.
         let expected = create_bids("u1".to_string(), 4, 150);
-        assert_eq!(*state.state.bids.lock().unwrap(), expected);
-        assert_eq!(*state.state.supply.lock().unwrap(), 0);
+        assert_eq!(*state.bids.lock().unwrap(), expected);
+        assert_eq!(*state.supply.lock().unwrap(), 0);
 
-        let allocations = state.state.allocations.lock().unwrap();
+        let allocations = state.allocations.lock().unwrap();
         assert_eq!(allocations.len(), 1);
         let allocation = allocations.get("u1").unwrap();
         assert_eq!(*allocation, 50);
@@ -161,7 +161,7 @@ mod tests {
     }
 
     #[actix_web::test]
-    #[should_panic(expected = "username cannot be empty")]
+    #[should_panic(expected = "MissingUsername")]
     async fn test_buy_with_empty_username() {
         let state = AppState::default();
         let data = web::Data::new(state.clone());
@@ -193,7 +193,7 @@ mod tests {
 
         // Assert that there is a queue created for
         // the price 5 with sequence increasing.
-        let bids = state.state.bids.lock().unwrap();
+        let bids = state.bids.lock().unwrap();
         let queue = bids.get(&5).unwrap();
         assert_eq!(queue.len(), 2);
         assert_eq!(queue.get(0).unwrap().seq, 0);

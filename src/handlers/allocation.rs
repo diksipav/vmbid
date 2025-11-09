@@ -8,7 +8,7 @@ pub async fn handle_allocation(state: &AppState, username: Option<&str>) -> Resu
         .filter(|s| !s.is_empty())
         .ok_or(TwinError::MissingUsername)?;
 
-    let allocations_guard = state.state.allocations.lock().unwrap();
+    let allocations_guard = state.allocations.lock().unwrap();
 
     match allocations_guard.get(username) {
         Some(&alloc) => Ok(alloc),

@@ -32,7 +32,7 @@ async fn test_concurrent_buys_maintain_fifo() {
     }
 
     // Assert: All bids created, seq numbers are unique and sequential
-    let bids = state.state.bids.lock().unwrap();
+    let bids = state.bids.lock().unwrap();
     let queue = bids.get(&5).unwrap();
 
     assert_eq!(queue.len(), 100, "All bids should be created");

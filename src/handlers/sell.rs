@@ -9,10 +9,10 @@ pub async fn handle_sell(state: &AppState, supply: u64) {
         return;
     }
 
-    let mut bids_guard = state.state.bids.lock().unwrap();
+    let mut bids_guard = state.bids.lock().unwrap();
 
     if !bids_guard.is_empty() {
-        let mut allocations_guard = state.state.allocations.lock().unwrap();
+        let mut allocations_guard = state.allocations.lock().unwrap();
         for (_price, queue) in bids_guard.iter_mut().rev() {
             while supply > 0 && !queue.is_empty() {
                 let front = queue.front_mut().unwrap();
@@ -39,7 +39,7 @@ pub async fn handle_sell(state: &AppState, supply: u64) {
     drop(bids_guard);
 
     if supply > 0 {
-        let mut supply_guard = state.state.supply.lock().unwrap();
+        let mut supply_guard = state.supply.lock().unwrap();
         *supply_guard += supply;
     }
 }
@@ -65,7 +65,7 @@ mod tests {
 
         handle_sell(&data, 100).await;
 
-        assert_eq!(*state.state.supply.lock().unwrap(), 100);
+        assert_eq!(*state.supply.lock().unwrap(), 100);
     }
 
     #[actix_web::test]
@@ -83,15 +83,12 @@ mod tests {
             seq: 0,
         });
         bids.insert(5, queue);
-        *state.state.bids.lock().unwrap() = bids;
+        *state.bids.lock().unwrap() = bids;
 
         handle_sell(&data, 200).await;
 
-        assert_eq!(*state.state.supply.lock().unwrap(), 100);
-        assert!(state.state.bids.lock().unwrap().is_empty());
-        assert_eq!(
-            *state.state.allocations.lock().unwrap().get("u1").unwrap(),
-            100
-        );
+        assert_eq!(*state.supply.lock().unwrap(), 100);
+        assert!(state.bids.lock().unwrap().is_empty());
+        assert_eq!(*state.allocations.lock().unwrap().get("u1").unwrap(), 100);
     }
 }

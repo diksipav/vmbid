@@ -1,5 +1,6 @@
 use crate::models::Bid;
 use std::collections::{BTreeMap, HashMap, VecDeque};
+use std::ops::Deref;
 use std::sync::atomic::AtomicU64;
 use std::sync::{Arc, Mutex};
 
@@ -16,15 +17,23 @@ pub struct AppState {
     pub state: Arc<Inner>,
 }
 
+impl Deref for AppState {
+    type Target = Inner;
+
+    fn deref(&self) -> &Self::Target {
+        &self.state
+    }
+}
+
 impl AppState {
     // Calculates total sold and total bought volume in the system
     // TODO: This is used in the tests foolder only, what is the
     // most idiomatic approach, to do sth like this? Or to create
     // a separate common file inside tests folder?
     pub fn total_volume_in_the_system(&self) -> (u64, u64) {
-        let allocations: u64 = self.state.allocations.lock().unwrap().values().sum();
+        let allocations: u64 = self.allocations.lock().unwrap().values().sum();
 
-        let supply = *self.state.supply.lock().unwrap();
+        let supply = *self.supply.lock().unwrap();
 
         let open_bids: u64 = self
             .state
