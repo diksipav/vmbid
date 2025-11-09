@@ -10,6 +10,7 @@ tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 
 [dev-dependencies]
 proptest = "1.9.0"
+rand = "0.9.2"
 
 [profile.test.package.proptest]
 opt-level = 3

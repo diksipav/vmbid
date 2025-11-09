@@ -3,6 +3,8 @@ use project::handlers::{handle_buy, handle_sell};
 use project::state::AppState;
 use proptest::prelude::*;
 use proptest::sample::select;
+// TODO: how idiomatic is to import things with use inside functions/tests?
+use std::collections::HashMap;
 
 // TODO: Hmm I know that proptest-regretions should be saved and commited, but
 // the initial failure was due to the wrong test, so not sure should I delete
@@ -41,30 +43,15 @@ fn action_strategy_few_users() -> impl Strategy<Value = Action> {
     ]
 }
 
-// Calculates total sold and total bought volume in the system
-fn total_volume_in_the_system(state: &AppState) -> (u64, u64) {
-    let allocations: u64 = state.state.allocations.lock().unwrap().values().sum();
-
-    let supply = *state.state.supply.lock().unwrap();
-
-    let open_bids: u64 = state
-        .state
-        .bids
-        .lock()
-        .unwrap()
-        .values()
-        .flat_map(|queue| queue.iter())
-        .map(|bid| bid.volume)
-        .sum();
-
-    (allocations + supply, allocations + open_bids)
-}
-
-// TODO: I'm not sure what is the most idiomatic here to do, to use
-// tokio runtime or to use actix_rt like I did leaving the test sync?
-// Or #[actix_rt::test] is needed? Or to use the proptest_async crate?
+// TODO: I'm not sure what is the most idiomatic here, to use
+// tokio runtime or to use actix_web::rt leaving the test sync?
+// Or to use the proptest_async crate? I believe my approach
+// is the best since async crate is still not mature enough.
 proptest! {
     #[test]
+    // INVARIANTs:
+    // total bought == bids + allocations
+    // total sold == current supply + allocations
     fn test_volume_conservation(
         actions in prop::collection::vec(action_strategy(), 1..20)
     ) {
@@ -88,7 +75,7 @@ proptest! {
                 }
             }
 
-            let (sold_in_system, bought_in_system) = total_volume_in_the_system(&state);
+            let (sold_in_system, bought_in_system) = state.total_volume_in_the_system();
 
             prop_assert_eq!(sold_in_system, total_sold,
                 "Volume not conserved! Sold in the system: {}, Total sold: {}",
@@ -108,9 +95,10 @@ proptest! {
     fn test_allocations_never_decrease(
         actions in prop::collection::vec(action_strategy_few_users(), 1..20)
     ) {
+
         rt::System::new().block_on(async {
             let state = AppState::default();
-            let mut previous_allocations: std::collections::HashMap<String, u64> = std::collections::HashMap::new();
+            let mut prev_allocations: HashMap<String, u64> = HashMap::new();
 
             for action in actions {
                 match action {
@@ -123,10 +111,10 @@ proptest! {
                         // Check allocation didn't decrease
                         let allocations = state.state.allocations.lock().unwrap();
                         if let Some(&current) = allocations.get(&username) {
-                            let previous = previous_allocations.get(&username).copied().unwrap_or(0);
+                            let previous = prev_allocations.get(&username).copied().unwrap_or(0);
                             prop_assert!(current >= previous,
                                 "Allocation decreased for {}: {} -> {}", username, previous, current);
-                            previous_allocations.insert(username, current);
+                            prev_allocations.insert(username, current);
                         }
                     }
                 }
