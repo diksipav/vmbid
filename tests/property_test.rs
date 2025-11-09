@@ -1,4 +1,4 @@
-use actix_rt;
+use actix_web::rt;
 use project::handlers::{handle_buy, handle_sell};
 use project::state::AppState;
 use proptest::prelude::*;
@@ -68,7 +68,7 @@ proptest! {
     fn test_volume_conservation(
         actions in prop::collection::vec(action_strategy(), 1..20)
     ) {
-          actix_rt::System::new().block_on(async {
+        rt::System::new().block_on(async {
             let state = AppState::default();
             let mut total_bought = 0u64;
             let mut total_sold = 0u64;
@@ -104,15 +104,11 @@ proptest! {
         }).unwrap();
     }
 
-
-
     #[test]
     fn test_allocations_never_decrease(
         actions in prop::collection::vec(action_strategy_few_users(), 1..20)
     ) {
-        let rt = tokio::runtime::Runtime::new().unwrap();
-
-        rt.block_on(async {
+        rt::System::new().block_on(async {
             let state = AppState::default();
             let mut previous_allocations: std::collections::HashMap<String, u64> = std::collections::HashMap::new();
 
