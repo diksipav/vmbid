@@ -92,6 +92,7 @@ proptest! {
     }
 
     #[test]
+    // Allocations per user never decrease
     fn test_allocations_never_decrease(
         actions in prop::collection::vec(action_strategy_few_users(), 1..20)
     ) {

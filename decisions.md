@@ -18,3 +18,7 @@ I decided to start with VecDeque for the bids queue within the price level becau
 ### 2025-01-09: Use BinaryHeap instead of VecDeque for FIFO queues
 
 Changed from `VecDeque<Bid>` to `BinaryHeap<Bid>` for price-level queues. Initially, in my code I chose the right sequence number for bid(I use fetch_add atomic operation) but I'd update the queue after the bids lock is acquired, which meant that bids don't have to be added in the queue in the exact order they arrived. I needed something like a priority queue, when I add to the queue I wanted to sort it by the sequence. BinaryHeap does this.
+
+### 2025-01-08: At least one test I'm proud of
+
+I didn't know anything about property testing so I spent a day understanding it (spent time rading the [proptest book](https://proptest-rs.github.io/proptest/)). So I'd choose these tests if I have to choose some. Ofc, I am quite sure they are not perfect, like neither unit nor concurrency tests. This is the first time I was writing tests in Rust and I spent lots of time on this part of the project.
