@@ -131,3 +131,19 @@ curl -s 'localhost:8080/allocation?username=u3'  # Returns: 50
 1. **Buy:** Check leftover supply first, allocate immediately if available, queue remainder as bid
 2. **Sell:** Iterate bids from highest to lowest price, fill in FIFO order (via seq), store leftovers in supply
 3. **FIFO guarantee:** Atomic sequence counter ensures deterministic ordering under concurrency
+
+## Design Rationale
+
+### Data Structures
+
+I chose `BTreeMap<u64, BinaryHeap<Bid>>` for bids because:
+- BTreeMap is an ordered map, and we need to sort by prices (FIFO inside a price level) so BTreeMap seems like a reasonable DS for this.
+- BinaryHeap for the priority queue, we need so sort queues by sequence. I firstly used VecDeque (first thing that came to my mind when I read FIFO), but then while coding I realised that /buy requests can arrive in different order than the order they acquire the lock. Queue is updated after acquiring the lock so it will not necesarily be ordered by a sequence. BinaryHeap will always sort by the sequence.
+
+I chose `HashMap<String, u64>` for allocations because we want to be able to query users for volume, and the DS does not have to be sorted.
+
+For the sequence I used `AtomicU64` counter, we need a lock-free solution for this in order to be able to serve buyers in the order they submit requests.
+
+### Concurrency Strategy
+
+The system uses coarse-grained locking with three separate mutexes (bids, allocations, supply). I believe this is better than one lock, it creates less contention. There is probably a way to write the project to be lock-free using lock-free data structures and atomic operations but I find it complex for my Rust knowledge level at the moment.
