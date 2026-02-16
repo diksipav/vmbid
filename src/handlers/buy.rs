@@ -1,4 +1,4 @@
-use crate::errors::TwinError;
+use crate::errors::VMbidError;
 use crate::models::*;
 use crate::state::AppState;
 use actix_web::{HttpResponse, Responder, post, web};
@@ -10,9 +10,9 @@ pub async fn handle_buy(
     username: String,
     volume: u64,
     price: u64,
-) -> Result<(), TwinError> {
+) -> Result<(), VMbidError> {
     if username.is_empty() {
-        return Err(TwinError::MissingUsername);
+        return Err(VMbidError::MissingUsername);
     }
 
     let mut volume = volume;

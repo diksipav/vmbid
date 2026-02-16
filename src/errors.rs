@@ -1,5 +1,5 @@
 #[derive(Debug)]
-pub enum TwinError {
+pub enum VMbidError {
     MissingUsername,
     NotFound(String),
 }

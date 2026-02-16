@@ -1,18 +1,21 @@
-use crate::errors::TwinError;
+use crate::errors::VMbidError;
 use crate::models::*;
 use crate::state::AppState;
 use actix_web::{HttpResponse, Responder, get, web};
 
-pub async fn handle_allocation(state: &AppState, username: Option<&str>) -> Result<u64, TwinError> {
+pub async fn handle_allocation(
+    state: &AppState,
+    username: Option<&str>,
+) -> Result<u64, VMbidError> {
     let username = username
         .filter(|s| !s.is_empty())
-        .ok_or(TwinError::MissingUsername)?;
+        .ok_or(VMbidError::MissingUsername)?;
 
     let allocations_guard = state.allocations.lock().unwrap();
 
     match allocations_guard.get(username) {
         Some(&alloc) => Ok(alloc),
-        None => Err(TwinError::NotFound(username.to_string())),
+        None => Err(VMbidError::NotFound(username.to_string())),
     }
 }
 
@@ -25,10 +28,10 @@ pub async fn allocation(
         Ok(allocation) => HttpResponse::Ok()
             .content_type("text/plain")
             .body(allocation.to_string()),
-        Err(TwinError::MissingUsername) => {
+        Err(VMbidError::MissingUsername) => {
             HttpResponse::BadRequest().body("missing 'username' query parameter")
         }
-        Err(TwinError::NotFound(username)) => {
+        Err(VMbidError::NotFound(username)) => {
             HttpResponse::NotFound().body(format!("username '{}' not found", username))
         }
     }
