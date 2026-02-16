@@ -1,4 +1,6 @@
-# Priority auction marketplace for VM compute hours: bids meet supply, highest price wins
+# Priority auction marketplace for VM compute hours
+
+Bids meet supply, highest price wins.
 
 ## Overview
 
