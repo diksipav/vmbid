@@ -22,35 +22,35 @@ A **supply drop** adds a number of VM-hours to the system.
 2. **FIFO inside a price level** (earlier bids at the same price fill first).
 3. **Partial fills** allowed; unfilled remainder stays open.
 4. **Unused supply** persists and **must auto-match** any *subsequent* bids arriving later (a `/buy` arriving when 
-**leftover supply** exists should be allocated immediately (no need to wait for the next `/sell`).
+leftover supply exists should be allocated immediately, no need to wait for the next `/sell`).
 
 ## API Endpoints
 
-- **POST `/buy`**
-  Body: `{"username":"u1","volume":100,"price":3}`
-  Response: **200 OK** (body ignored).
+### POST `/buy`
+- Body: `{"username":"u1","volume":100,"price":3}`
+- Response: **200 OK** (body ignored).
 
-**Behavior:**
+Behavior:
 - Registers bid; **immediately allocate** if leftover supply is available.
 - Remaining volume is queued as a bid.
 - Empty username returns `400 Bad Request`.
 - Zero volume is accepted (no-op).
 
-- **POST `/sell`**
-  Body: `{"volume":250}`
-  Response: **200 OK** (body ignored).
+### POST `/sell`
+- Body: `{"volume":250}`
+- Response: **200 OK** (body ignored).
 
-**Behavior:**
+Behavior:
 - Adds supply and llocates to outstanding bids by price (highest first).
 - Within same price level, fills bids in FIFO order.
 - Leftover supply is stored for future bids.
 
-- **GET `/allocation?username=u1`**
-  Responses: **200 OK** with plain text integer body (e.g., "150"), or error:
-  `400 Bad Request` - Missing username parameter
-  `404 Not Found` - Username not found
+### GET `/allocation?username=u1`
+- Responses: **200 OK** with plain text integer body (e.g., "150"), or error:
+- `400 Bad Request` - Missing username parameter
+- `404 Not Found` - Username not found
 
-**Behavior:**
+Behavior:
 - Returns the **integer** total VM-hours allocated for a user.
 
 ## Example
