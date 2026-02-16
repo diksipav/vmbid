@@ -1,14 +1,70 @@
-# VM-Hours Allocation Service
+# Priority auction marketplace for VM compute hours: bids meet supply, highest price wins
 
 ## Overview
 
-This service implements a VM capacity auction system where:
+This is a tiny HTTP service that tracks **bids** for VM capacity and **allocates** integer VM-hours when supply arrives:
 - Users submit **bids** (username, volume, price) for VM hours through `/buy` endpoints.
 - Providers add **supply** through `/sell` endpoints.
 - The system automatically **allocates** supply to the highest-priced bids (FIFO within price levels).
 - Leftover supply persists and auto-matches future bids.
 - It is possible to query the allocation for a specific user through the `/allocation`
 endpoint, providing the username as a query parameter.
+
+A **bid** has:
+- `username` – unique user ID (string)
+- `volume` – requested VM-hours (integer ≥ 0)
+- `price` – max price **per hour** (integer ≥ 0)
+
+A **supply drop** adds a number of VM-hours to the system.
+
+**Allocation rules**
+1. **Highest price wins.**
+2. **FIFO inside a price level** (earlier bids at the same price fill first).
+3. **Partial fills** allowed; unfilled remainder stays open.
+4. **Unused supply** persists and **must auto-match** any *subsequent* bids arriving later (a `/buy` arriving when 
+**leftover supply** exists should be allocated immediately (no need to wait for the next `/sell`).
+
+## API Endpoints
+
+- **POST `/buy`**
+  Body: `{"username":"u1","volume":100,"price":3}`
+  Response: **200 OK** (body ignored).
+
+**Behavior:**
+- Registers bid; **immediately allocate** if leftover supply is available.
+- Remaining volume is queued as a bid.
+- Empty username returns `400 Bad Request`.
+- Zero volume is accepted (no-op).
+
+- **POST `/sell`**
+  Body: `{"volume":250}`
+  Response: **200 OK** (body ignored).
+
+**Behavior:**
+- Adds supply and llocates to outstanding bids by price (highest first).
+- Within same price level, fills bids in FIFO order.
+- Leftover supply is stored for future bids.
+
+- **GET `/allocation?username=u1`**
+  Responses: **200 OK** with plain text integer body (e.g., "150"), or error:
+  `400 Bad Request` - Missing username parameter
+  `404 Not Found` - Username not found
+
+**Behavior:**
+- Returns the **integer** total VM-hours allocated for a user.
+
+## Example
+
+Events:
+- t1: u1 bids 100 @ 3
+- t2: u2 bids 150 @ 2
+- t3: u3 bids 50  @ 4
+- t4: provider sells 250
+
+Allocation at t4:
+- 50 → u3
+- 100 → u1
+- 100 → u2 (u2 still open for 50)
 
 ## Quick Start
 
@@ -32,56 +88,6 @@ cargo test --lib                    # Unit tests
 cargo test --test property_test     # Property tests
 cargo test --test concurrency_test  # Concurrency tests
 ```
-
-## API Endpoints
-
-### POST `/buy`
-Submit a bid for VM capacity.
-
-**Request:**
-```json
-{
-  "username": "user1",
-  "volume": 100,
-  "price": 5
-}
-```
-
-- **Response:** `200 OK`
-
-**Behavior:**
-- If leftover supply exists, immediately allocates what's available.
-- Remaining volume is queued as a bid.
-- Empty username returns `400 Bad Request`.
-- Zero volume is accepted (no-op).
-
-### POST `/sell`
-Add VM capacity supply to the system.
-
-**Request:**
-```json
-{
-  "volume": 100,
-}
-```
-
-- **Response:** `200 OK`
-
-**Behavior:**
-- Allocates to outstanding bids by price (highest first).
-- Within same price level, fills bids in FIFO order.
-- Leftover supply is stored for future bids.
-
-
-### GET `/allocation?username=u1`
-Query total allocated VM-hours for a user.
-
-- **Response:** `200 OK with plain text integer body (e.g., "150")`
-
-**Error responses:**
-- `400 Bad Request` - Missing username parameter
-- `404 Not Found` - Username not found
-
 
 ## Example Usage
 
