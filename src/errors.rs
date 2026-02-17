@@ -3,7 +3,7 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum VmbidError {
-    #[error("please provide a username")]
+    #[error("username is missing, please provide one")]
     MissingUsername,
 
     #[error("username {0} not found")]
@@ -18,3 +18,5 @@ impl ResponseError for VmbidError {
         }
     }
 }
+
+// todo test this errors, test if user name is visible in notfound err

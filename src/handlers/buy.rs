@@ -23,7 +23,7 @@ pub async fn handle_buy(
     let mut to_allocate = 0;
 
     {
-        let mut supply_guard = state.supply.lock().unwrap();
+        let mut supply_guard = state.supply.lock();
         let supply = *supply_guard;
         if supply > 0 {
             // If supply > volume allocate volume.
@@ -35,7 +35,7 @@ pub async fn handle_buy(
     }
 
     if to_allocate > 0 {
-        let mut allocations_guard = state.allocations.lock().unwrap();
+        let mut allocations_guard = state.allocations.lock();
         *allocations_guard.entry(username.clone()).or_insert(0) += to_allocate;
     }
 
@@ -48,7 +48,7 @@ pub async fn handle_buy(
             seq,
         };
 
-        let mut bids_guard = state.bids.lock().unwrap();
+        let mut bids_guard = state.bids.lock();
         bids_guard
             .entry(price)
             .or_insert_with(BinaryHeap::new)
@@ -87,7 +87,7 @@ mod tests {
         let result = handle_buy(&data, "u1".to_string(), 100, 3).await;
         assert!(result.is_ok());
 
-        let bids = state.bids.lock().unwrap();
+        let bids = state.bids.lock();
         let heap = bids.get(&3).unwrap();
 
         assert_eq!(heap.len(), 1);
@@ -106,7 +106,7 @@ mod tests {
     async fn test_buy_with_supply_immediate_allocation() {
         let state = AppState::default();
         // Set initial supply
-        *state.supply.lock().unwrap() = 150;
+        *state.supply.lock() = 150;
 
         let data = web::Data::new(state.clone());
 
@@ -114,11 +114,11 @@ mod tests {
         assert!(result.is_ok());
 
         // Supply is updated. No bids.
-        assert_eq!(state.bids.lock().unwrap().len(), 0);
-        assert_eq!(*state.supply.lock().unwrap(), 50);
+        assert_eq!(state.bids.lock().len(), 0);
+        assert_eq!(*state.supply.lock(), 50);
 
         // Allocation is created
-        let allocations = state.allocations.lock().unwrap();
+        let allocations = state.allocations.lock();
         assert_eq!(allocations.len(), 1);
         let allocation = allocations.get("u1").unwrap();
         assert_eq!(*allocation, 100);
@@ -128,7 +128,7 @@ mod tests {
     async fn test_buy_with_partial_supply() {
         let state = AppState::default();
         // Set initial supply
-        *state.supply.lock().unwrap() = 50;
+        *state.supply.lock() = 50;
 
         let data = web::Data::new(state.clone());
 
@@ -138,7 +138,7 @@ mod tests {
         // Required resources are higner than supply,
         // so both allocation and bid are created.
         // Supply is emptied.
-        let bids = state.bids.lock().unwrap();
+        let bids = state.bids.lock();
         let heap = bids.get(&4).unwrap();
         assert_eq!(heap.len(), 1);
         assert_eq!(
@@ -151,9 +151,9 @@ mod tests {
             })
         );
 
-        assert_eq!(*state.supply.lock().unwrap(), 0);
+        assert_eq!(*state.supply.lock(), 0);
 
-        let allocations = state.allocations.lock().unwrap();
+        let allocations = state.allocations.lock();
         assert_eq!(allocations.len(), 1);
         let allocation = allocations.get("u1").unwrap();
         assert_eq!(*allocation, 50);
@@ -203,7 +203,7 @@ mod tests {
 
         // Assert that there is a queue created for
         // the price 5 with sequence increasing.
-        let bids = state.bids.lock().unwrap();
+        let bids = state.bids.lock();
         let heap = bids.get(&5).unwrap();
         assert_eq!(heap.len(), 2);
 

@@ -9,7 +9,7 @@ pub async fn handle_allocation(
 ) -> Result<u64, VmbidError> {
     let username = username.ok_or(VmbidError::MissingUsername)?.trim();
 
-    let allocations_guard = state.allocations.lock().unwrap();
+    let allocations_guard = state.allocations.lock();
     allocations_guard
         .get(username)
         .copied()

@@ -1,8 +1,9 @@
 use crate::models::Bid;
+use parking_lot::Mutex;
 use std::collections::{BTreeMap, BinaryHeap, HashMap};
 use std::ops::Deref;
+use std::sync::Arc;
 use std::sync::atomic::AtomicU64;
-use std::sync::{Arc, Mutex};
 
 #[derive(Default)]
 pub struct Inner {
@@ -31,15 +32,14 @@ impl AppState {
     // most idiomatic approach, to do sth like this? Or to create
     // a separate common file inside tests folder?
     pub fn total_volume_in_the_system(&self) -> (u64, u64) {
-        let allocations: u64 = self.allocations.lock().unwrap().values().sum();
+        let allocations: u64 = self.allocations.lock().values().sum();
 
-        let supply = *self.supply.lock().unwrap();
+        let supply = *self.supply.lock();
 
         let open_bids: u64 = self
             .state
             .bids
             .lock()
-            .unwrap()
             .values()
             .flat_map(|queue| queue.iter())
             .map(|bid| bid.volume)

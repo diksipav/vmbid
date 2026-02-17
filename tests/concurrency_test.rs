@@ -32,7 +32,7 @@ async fn test_concurrent_buys_maintain_fifo() {
     }
 
     // Assert: All bids created, seq numbers are unique and sequential
-    let bids = state.bids.lock().unwrap();
+    let bids = state.bids.lock();
     let queue = bids.get(&5).unwrap();
 
     assert_eq!(queue.len(), 100, "All bids should be created");
@@ -136,7 +136,7 @@ async fn test_concurrent_allocations_never_decrease() {
         for _ in 0..20 {
             tokio::time::sleep(tokio::time::Duration::from_millis(1)).await;
 
-            let allocs = state_clone.state.allocations.lock().unwrap();
+            let allocs = state_clone.state.allocations.lock();
             let mut history = history_clone.lock().unwrap();
             println!("history {:?}", history);
             for (user, &allocation) in allocs.iter() {

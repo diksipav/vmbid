@@ -14,7 +14,6 @@ pub struct SellRequest {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-
 pub struct Bid {
     pub username: String,
     pub volume: u64,

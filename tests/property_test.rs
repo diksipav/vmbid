@@ -110,7 +110,7 @@ proptest! {
                         let _ = handle_buy(&state, username.clone(), volume,price).await;
 
                         // Check allocation didn't decrease
-                        let allocations = state.allocations.lock().unwrap();
+                        let allocations = state.allocations.lock();
                         if let Some(&current) = allocations.get(&username) {
                             let previous = prev_allocations.get(&username).copied().unwrap_or(0);
                             prop_assert!(current >= previous,
