@@ -1,7 +1,7 @@
-use crate::errors::VMbidError;
+use crate::errors::VmbidError;
 use crate::models::*;
 use crate::state::AppState;
-use actix_web::{HttpResponse, Responder, post, web};
+use actix_web::{HttpResponse, post, web};
 use std::collections::BinaryHeap;
 use std::sync::atomic::Ordering;
 
@@ -10,9 +10,9 @@ pub async fn handle_buy(
     username: String,
     volume: u64,
     price: u64,
-) -> Result<(), VMbidError> {
+) -> Result<(), VmbidError> {
     if username.is_empty() {
-        return Err(VMbidError::MissingUsername);
+        return Err(VmbidError::MissingUsername);
     }
 
     let mut volume = volume;
@@ -59,17 +59,19 @@ pub async fn handle_buy(
 }
 
 #[post("/buy")]
-pub async fn buy(state: web::Data<AppState>, req: web::Json<BuyRequest>) -> impl Responder {
+pub async fn buy(
+    state: web::Data<AppState>,
+    req: web::Json<BuyRequest>,
+) -> Result<HttpResponse, VmbidError> {
     let BuyRequest {
         username,
         volume,
         price,
     } = req.into_inner();
 
-    match handle_buy(&state, username, volume, price).await {
-        Ok(_) => HttpResponse::Ok().finish(),
-        Err(_) => HttpResponse::BadRequest().body("username can not be empty"),
-    }
+    handle_buy(&state, username, volume, price).await?;
+
+    Ok(HttpResponse::Ok().finish())
 }
 
 #[cfg(test)]
