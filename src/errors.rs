@@ -18,5 +18,3 @@ impl ResponseError for VmbidError {
         }
     }
 }
-
-// todo test this errors, test if user name is visible in notfound err
