@@ -1,56 +1,59 @@
 use crate::models::*;
 use crate::state::AppState;
-use actix_web::{HttpResponse, Responder, post, web};
+use actix_web::{HttpResponse, post, web};
 
+/// Matches incoming supply against highest-price bids (FIFO per price level).
+/// Updates allocations and stores leftovers in global supply.
 pub async fn handle_sell(state: &AppState, supply: u64) {
-    let mut supply = supply;
+    let mut remaining = supply;
 
-    if supply == 0 {
+    if remaining == 0 {
         return;
     }
 
     let mut bids_guard = state.bids.lock();
 
+    // If there are available bids match them with supply and create allocations.
     if !bids_guard.is_empty() {
         let mut allocations_guard = state.allocations.lock();
+        // Match highest-price bids first (BTreeMap::rev())
         for (_price, queue) in bids_guard.iter_mut().rev() {
             let mut front_volume: Option<u64> = None;
-            while supply > 0 && !queue.is_empty() {
+            while remaining > 0 && !queue.is_empty() {
                 if let Some(mut front) = queue.peek_mut() {
-                    // If supply > volume allocate volume.
-                    // If volume > supply allocate supply.
-                    let to_allocate = supply.min(front.volume);
+                    let to_allocate = remaining.min(front.volume);
                     *allocations_guard.entry(front.username.clone()).or_insert(0) += to_allocate;
                     front.volume -= to_allocate;
-                    supply -= to_allocate;
+                    remaining -= to_allocate;
                     front_volume = Some(front.volume);
                 }
+                // Remove if fully filled.
                 if front_volume == Some(0) {
                     queue.pop();
                 }
             }
-            if supply == 0 {
+            if remaining == 0 {
                 break;
             }
         }
 
+        // Clean empty price queues.
         bids_guard.retain(|_, q| !q.is_empty());
     }
 
     drop(bids_guard);
 
-    if supply > 0 {
+    if remaining > 0 {
         let mut supply_guard = state.supply.lock();
-        *supply_guard += supply;
+        *supply_guard += remaining;
     }
 }
 
 #[post("/sell")]
-pub async fn sell(state: web::Data<AppState>, req: web::Json<SellRequest>) -> impl Responder {
-    let supply = req.volume;
-    handle_sell(&state, supply).await;
+pub async fn sell(state: web::Data<AppState>, req: web::Json<SellRequest>) -> HttpResponse {
+    handle_sell(&state, req.volume).await;
 
-    HttpResponse::Ok()
+    HttpResponse::Ok().finish()
 }
 
 #[cfg(test)]

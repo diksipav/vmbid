@@ -5,45 +5,43 @@ use actix_web::{HttpResponse, post, web};
 use std::collections::BinaryHeap;
 use std::sync::atomic::Ordering;
 
+/// Handles buy requests: allocates from supply, creates bids for remainder.
 pub async fn handle_buy(
     state: &AppState,
     username: String,
     volume: u64,
     price: u64,
 ) -> Result<(), VmbidError> {
-    if username.is_empty() {
+    if username.trim().is_empty() {
         return Err(VmbidError::MissingUsername);
     }
 
-    let mut volume = volume;
-    if volume == 0 {
+    let mut remaining = volume;
+    if remaining == 0 {
         return Ok(());
     }
 
-    let mut to_allocate = 0;
-
+    // Compares requested volume to available supply and calculates the amount to allocate.
+    // Updates supply and remaining volume.
     {
         let mut supply_guard = state.supply.lock();
-        let supply = *supply_guard;
-        if supply > 0 {
-            // If supply > volume allocate volume.
-            // If volume > supply allocate supply.
-            to_allocate = volume.min(supply);
-            *supply_guard -= to_allocate;
-            volume -= to_allocate;
-        }
+        let alloc = remaining.min(*supply_guard);
+        *supply_guard -= alloc;
+        remaining -= alloc;
     }
 
-    if to_allocate > 0 {
+    // Creates allocation for the user.
+    if remaining < volume {
         let mut allocations_guard = state.allocations.lock();
-        *allocations_guard.entry(username.clone()).or_insert(0) += to_allocate;
+        *allocations_guard.entry(username.clone()).or_insert(0) += volume - remaining;
     }
 
-    if volume > 0 {
+    // Queue remainder as bid.
+    if remaining > 0 {
         let seq = state.seq.fetch_add(1, Ordering::Relaxed);
         let bid = Bid {
             username,
-            volume,
+            volume: remaining,
             price,
             seq,
         };

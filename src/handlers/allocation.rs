@@ -3,6 +3,7 @@ use crate::models::*;
 use crate::state::AppState;
 use actix_web::{HttpResponse, get, web};
 
+/// Returns the allocation for a given username.
 pub async fn handle_allocation(
     state: &AppState,
     username: Option<&str>,
