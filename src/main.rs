@@ -1,4 +1,5 @@
 use actix_web::{App, HttpServer, web};
+use log::info;
 
 pub mod errors;
 pub mod handlers;
@@ -10,7 +11,8 @@ use state::AppState;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    println!("Starting server...");
+    env_logger::init();
+    info!("Starting server...");
     let state = AppState::default();
     HttpServer::new(move || {
         App::new()

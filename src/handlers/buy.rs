@@ -2,10 +2,11 @@ use crate::errors::VmbidError;
 use crate::models::*;
 use crate::state::AppState;
 use actix_web::{HttpResponse, post, web};
+use log::{error, info};
 use std::collections::BinaryHeap;
 use std::sync::atomic::Ordering;
 
-/// Handles buy requests: allocates from supply, creates bids for remainder.
+/// Handles buy requests: allocates from supply, creates bids from remainder.
 pub async fn handle_buy(
     state: &AppState,
     username: String,
@@ -13,6 +14,10 @@ pub async fn handle_buy(
     price: u64,
 ) -> Result<(), VmbidError> {
     if username.trim().is_empty() {
+        error!(
+            "Buy rejected: missing username for volume={} price={}",
+            volume, price
+        );
         return Err(VmbidError::MissingUsername);
     }
 
@@ -33,14 +38,21 @@ pub async fn handle_buy(
     // Creates allocation for the user.
     if remaining < volume {
         let mut allocations_guard = state.allocations.lock();
-        *allocations_guard.entry(username.clone()).or_insert(0) += volume - remaining;
+        let prior = *allocations_guard.entry(username.clone()).or_insert(0);
+        *allocations_guard.get_mut(&username).unwrap() += volume - remaining;
+        info!(
+            "User {} allocation: {} -> {}",
+            username,
+            prior,
+            prior + volume - remaining
+        );
     }
 
     // Queue remainder as bid.
     if remaining > 0 {
         let seq = state.seq.fetch_add(1, Ordering::Relaxed);
         let bid = Bid {
-            username,
+            username: username.clone(),
             volume: remaining,
             price,
             seq,
@@ -51,6 +63,10 @@ pub async fn handle_buy(
             .entry(price)
             .or_insert_with(BinaryHeap::new)
             .push(bid);
+        info!(
+            "Queued bid: user={} volume={} price={} seq={}",
+            username, remaining, price, seq
+        );
     }
 
     Ok(())

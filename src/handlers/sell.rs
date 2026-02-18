@@ -1,6 +1,7 @@
 use crate::models::*;
 use crate::state::AppState;
 use actix_web::{HttpResponse, post, web};
+use log::info;
 
 /// Matches incoming supply against highest-price bids (FIFO per price level).
 /// Updates allocations and stores leftovers in global supply.
@@ -21,10 +22,18 @@ pub async fn handle_sell(state: &AppState, supply: u64) {
             let mut front_volume: Option<u64> = None;
             while remaining > 0 && !queue.is_empty() {
                 if let Some(mut front) = queue.peek_mut() {
-                    let to_allocate = remaining.min(front.volume);
-                    *allocations_guard.entry(front.username.clone()).or_insert(0) += to_allocate;
-                    front.volume -= to_allocate;
-                    remaining -= to_allocate;
+                    let alloc = remaining.min(front.volume);
+                    let prior = *allocations_guard.entry(front.username.clone()).or_insert(0);
+                    *allocations_guard.get_mut(&front.username).unwrap() += alloc;
+                    info!(
+                        "User {} allocation: {} -> {}",
+                        front.username,
+                        prior,
+                        prior + alloc
+                    );
+
+                    front.volume -= alloc;
+                    remaining -= alloc;
                     front_volume = Some(front.volume);
                 }
                 // Remove if fully filled.
@@ -43,9 +52,12 @@ pub async fn handle_sell(state: &AppState, supply: u64) {
 
     drop(bids_guard);
 
+    // If after all bids are matched there are remaining units, add them to the supply.
     if remaining > 0 {
         let mut supply_guard = state.supply.lock();
+        let prior = *supply_guard;
         *supply_guard += remaining;
+        info!("Supply increased: {} -> {}", prior, prior + remaining);
     }
 }
 

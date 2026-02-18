@@ -3,7 +3,7 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum VmbidError {
-    #[error("username is missing, please provide one")]
+    #[error("please provide username")]
     MissingUsername,
 
     #[error("username {0} not found")]
