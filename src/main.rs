@@ -1,4 +1,5 @@
 use actix_web::{App, HttpServer, web};
+use env_logger::Env;
 use log::info;
 
 pub mod errors;
@@ -11,7 +12,8 @@ use state::AppState;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    env_logger::init();
+    // automatically log everything with info level or higher
+    env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
     info!("Starting server...");
     let state = AppState::default();
     HttpServer::new(move || {
