@@ -1,10 +1,12 @@
-use actix_web::rt;
-use project::handlers::{handle_buy, handle_sell};
-use project::state::AppState;
-use proptest::prelude::*;
-use proptest::sample::select;
 // TODO: how idiomatic is to import things with use inside functions/tests?
 use std::collections::HashMap;
+
+use project::{
+    handlers::{handle_buy, handle_sell},
+    state::AppState,
+};
+use proptest::{prelude::*, sample::select};
+use tokio::runtime::Runtime;
 
 // TODO: Hmm I know that proptest-regretions should be saved and commited, but
 // the initial failure was due to the wrong test, so not sure should I delete
@@ -44,7 +46,7 @@ fn action_strategy_few_users() -> impl Strategy<Value = Action> {
 }
 
 // TODO: I'm not sure what is the most idiomatic here, to use
-// tokio runtime or to use actix_web::rt leaving the test sync?
+// tokio runtime or to use tokio::rt leaving the test sync?
 // Or to use the proptest_async crate? I believe my approach
 // is the best since async crate is still not mature enough.
 proptest! {
@@ -55,40 +57,41 @@ proptest! {
     fn test_volume_conservation(
         actions in prop::collection::vec(action_strategy(), 1..20)
     ) {
-        rt::System::new().block_on(async {
-            let state = AppState::default();
-            let mut total_bought = 0u64;
-            let mut total_sold = 0u64;
+      let rt = Runtime::new()?;
+      rt.block_on(async {
+          let state = AppState::default();
+          let mut total_bought = 0u64;
+          let mut total_sold = 0u64;
 
-            for action in actions {
-                match action {
-                    Action::Sell(volume) => {
-                        handle_sell(&state, volume).await;
-                        total_sold += volume;
-                    },
-                    Action::Buy(username, price, volume) => {
-                        if handle_buy(&state, username, volume, price).await.is_ok() {
-                            total_bought += volume;
-                        }
-                    }
+          for action in actions {
+              match action {
+                  Action::Sell(volume) => {
+                      handle_sell(&state, volume).await;
+                      total_sold += volume;
+                  },
+                  Action::Buy(username, volume, price) => {
+                      if handle_buy(&state, username, volume, price).await.is_ok() {
+                          total_bought += volume;
+                      }
+                  }
 
-                }
-            }
+              }
+          }
 
-            let (sold_in_system, bought_in_system) = state.total_volume_in_the_system();
+          let (sold_in_system, bought_in_system) = state.total_volume_in_the_system();
 
-            prop_assert_eq!(sold_in_system, total_sold,
-                "Volume not conserved! Sold in the system: {}, Total sold: {}",
-                sold_in_system, total_sold
-            );
+          prop_assert_eq!(sold_in_system, total_sold,
+              "Volume not conserved! Sold in the system: {}, Total sold: {}",
+              sold_in_system, total_sold
+          );
 
-            prop_assert_eq!(bought_in_system, total_bought,
-                "Volume not conserved! Bought in the system: {}, Total bought: {})",
-                bought_in_system, total_bought
-            );
+          prop_assert_eq!(bought_in_system, total_bought,
+              "Volume not conserved! Bought in the system: {}, Total bought: {})",
+              bought_in_system, total_bought
+          );
 
-            Ok(())
-        }).unwrap();
+          Ok(())
+      })?;
     }
 
     #[test]
@@ -96,32 +99,33 @@ proptest! {
     fn test_allocations_never_decrease(
         actions in prop::collection::vec(action_strategy_few_users(), 1..20)
     ) {
+      let rt = Runtime::new()?;
 
-        rt::System::new().block_on(async {
-            let state = AppState::default();
-            let mut prev_allocations: HashMap<String, u64> = HashMap::new();
+      rt.block_on(async {
+          let state = AppState::default();
+          let mut prev_allocations: HashMap<String, u64> = HashMap::new();
 
-            for action in actions {
-                match action {
-                    Action::Sell(volume) => {
-                        handle_sell(&state, volume).await;
-                    },
-                    Action::Buy(username, price, volume) => {
-                        let _ = handle_buy(&state, username.clone(), volume,price).await;
+          for action in actions {
+              match action {
+                  Action::Sell(volume) => {
+                      handle_sell(&state, volume).await;
+                  },
+                  Action::Buy(username, volume, price) => {
+                      let _ = handle_buy(&state, username.clone(), volume, price).await;
 
-                        // Check allocation didn't decrease
-                        let allocations = state.allocations.lock();
-                        if let Some(&current) = allocations.get(&username) {
-                            let previous = prev_allocations.get(&username).copied().unwrap_or(0);
-                            prop_assert!(current >= previous,
-                                "Allocation decreased for {}: {} -> {}", username, previous, current);
-                            prev_allocations.insert(username, current);
-                        }
-                    }
-                }
-            }
+                      // Check allocation didn't decrease
+                      let allocations = state.allocations.lock();
+                      if let Some(&current) = allocations.get(&username) {
+                          let previous = prev_allocations.get(&username).copied().unwrap_or(0);
+                          prop_assert!(current >= previous,
+                              "Allocation decreased for {}: {} -> {}", username, previous, current);
+                          prev_allocations.insert(username, current);
+                      }
+                  }
+              }
+          }
 
-            Ok(())
-        }).unwrap();
+          Ok(())
+      })?;
     }
 }

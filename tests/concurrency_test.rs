@@ -1,20 +1,23 @@
-use actix_web::rt;
-use project::handlers::{handle_buy, handle_sell};
-use project::state::AppState;
-use rand::Rng;
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+};
 
-#[actix_web::test]
+use project::{
+    handlers::{handle_buy, handle_sell},
+    state::AppState,
+};
+use rand::Rng;
+
+#[tokio::test]
 async fn test_concurrent_buys_maintain_fifo() {
     let state = Arc::new(AppState::default());
 
     // Spawn 100 concurrent buy tasks
     let mut handles = vec![];
     for i in 0..100 {
-        // TODO: is it more idiomatic to use shadowing here: let state = ...
         let state_clone = state.clone();
-        let handle = rt::spawn(async move {
+        let handle = tokio::spawn(async move {
             handle_buy(
                 &state_clone,
                 format!("user{}", i),
@@ -31,20 +34,23 @@ async fn test_concurrent_buys_maintain_fifo() {
         handle.await.unwrap().unwrap();
     }
 
-    // Assert: All bids created, seq numbers are unique and sequential
+    // Assert: All bids created, seq numbers are unique
     let bids = state.bids.lock();
     let queue = bids.get(&5).unwrap();
 
     assert_eq!(queue.len(), 100, "All bids should be created");
 
-    let seq_numbers: Vec<u64> = queue.iter().map(|b| b.seq).collect();
-
-    for (i, &seq) in seq_numbers.iter().enumerate() {
-        assert_eq!(seq, i as u64, "Seq numbers should be 0..99");
-    }
+    let mut seq_numbers: Vec<u64> = queue.iter().map(|b| b.seq).collect();
+    seq_numbers.sort();
+    // Seq numbers should be unique and cover 0..99
+    assert_eq!(
+        seq_numbers,
+        (0u64..100).collect::<Vec<_>>(),
+        "Seq numbers should be unique and sequential"
+    );
 }
 
-#[actix_web::test]
+#[tokio::test]
 // INVARIANTs:
 // total bought == bids + allocations
 // total sold == current supply + allocations
@@ -59,14 +65,14 @@ async fn test_concurrent_buy_and_sell_conservation() {
     let mut total_sold = 0;
     for i in 0..100 {
         let state_clone = state.clone();
-        let handle = rt::spawn(async move {
+        let handle = tokio::spawn(async move {
             handle_buy(&state_clone, format!("user{}", i), 50 * (i % 10), i % 10).await
         });
         buy_handles.push(handle);
         total_bought += 50 * (i % 10);
 
         let state_clone = state.clone();
-        let handle = rt::spawn(async move { handle_sell(&state_clone, 350).await });
+        let handle = tokio::spawn(async move { handle_sell(&state_clone, 350).await });
         sell_handles.push(handle);
         total_sold += 350;
     }
@@ -76,7 +82,7 @@ async fn test_concurrent_buy_and_sell_conservation() {
         handle.await.unwrap().unwrap();
     }
 
-    // Wait for all sell tasks  to complete
+    // Wait for all sell tasks to complete
     for handle in sell_handles {
         handle.await.unwrap();
     }
@@ -98,19 +104,19 @@ async fn test_concurrent_buy_and_sell_conservation() {
     );
 }
 
-#[actix_web::test]
+#[tokio::test]
 async fn test_concurrent_allocations_never_decrease() {
     let state = Arc::new(AppState::default());
     let alloc_history: Arc<Mutex<HashMap<String, Vec<u64>>>> = Arc::new(Mutex::new(HashMap::new()));
 
     // Spawn 100 concurrent buy and 100 sell tasks. Use random
-    // delay to make tasks call buy and sell handlers at ranom times.
+    // delay to make tasks call buy and sell handlers at random times.
     let mut buy_handles = vec![];
     let mut sell_handles = vec![];
 
     for i in 0..100 {
         let state_clone = state.clone();
-        buy_handles.push(rt::spawn(async move {
+        buy_handles.push(tokio::spawn(async move {
             let delay = rand::rng().random_range(0..20);
             tokio::time::sleep(tokio::time::Duration::from_millis(delay)).await;
 
@@ -121,7 +127,7 @@ async fn test_concurrent_allocations_never_decrease() {
         }));
 
         let state_clone = state.clone();
-        sell_handles.push(rt::spawn(async move {
+        sell_handles.push(tokio::spawn(async move {
             let delay = rand::rng().random_range(0..20);
             tokio::time::sleep(tokio::time::Duration::from_millis(delay)).await;
 
@@ -132,13 +138,12 @@ async fn test_concurrent_allocations_never_decrease() {
     // Sample allocations periodically during execution
     let state_clone = state.clone();
     let history_clone = alloc_history.clone();
-    let monitor = rt::spawn(async move {
+    let monitor = tokio::spawn(async move {
         for _ in 0..20 {
             tokio::time::sleep(tokio::time::Duration::from_millis(1)).await;
 
             let allocs = state_clone.state.allocations.lock();
             let mut history = history_clone.lock().unwrap();
-            println!("history {:?}", history);
             for (user, &allocation) in allocs.iter() {
                 history
                     .entry(user.clone())

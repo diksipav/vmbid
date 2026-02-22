@@ -1,5 +1,6 @@
-use serde::Deserialize;
 use std::cmp::Ordering;
+
+use serde::Deserialize;
 
 #[derive(Deserialize)]
 pub struct BuyRequest {

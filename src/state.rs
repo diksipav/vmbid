@@ -1,9 +1,12 @@
-use crate::models::Bid;
+use std::{
+    collections::{BTreeMap, BinaryHeap, HashMap},
+    ops::Deref,
+    sync::{Arc, atomic::AtomicU64},
+};
+
 use parking_lot::Mutex;
-use std::collections::{BTreeMap, BinaryHeap, HashMap};
-use std::ops::Deref;
-use std::sync::Arc;
-use std::sync::atomic::AtomicU64;
+
+use crate::models::Bid;
 
 #[derive(Default)]
 pub struct Inner {

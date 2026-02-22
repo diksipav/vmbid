@@ -1,7 +1,7 @@
-use crate::models::*;
-use crate::state::AppState;
-use actix_web::{HttpResponse, post, web};
+use axum::extract::{Json, State};
 use log::info;
+
+use crate::{models::*, state::AppState};
 
 /// Matches incoming supply against highest-price bids (FIFO per price level).
 /// Updates allocations and stores leftovers in global supply.
@@ -61,33 +61,28 @@ pub async fn handle_sell(state: &AppState, supply: u64) {
     }
 }
 
-#[post("/sell")]
-pub async fn sell(state: web::Data<AppState>, req: web::Json<SellRequest>) -> HttpResponse {
-    handle_sell(&state, req.volume).await;
-
-    HttpResponse::Ok().finish()
+pub async fn sell(State(state): State<AppState>, Json(payload): Json<SellRequest>) {
+    handle_sell(&state, payload.volume).await;
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use actix_web::web;
     use std::collections::{BTreeMap, BinaryHeap};
 
-    #[actix_web::test]
+    use super::*;
+
+    #[tokio::test]
     async fn test_sell_when_no_bids_creates_supply() {
         let state = AppState::default();
-        let data = web::Data::new(state.clone());
 
-        handle_sell(&data, 100).await;
+        handle_sell(&state, 100).await;
 
         assert_eq!(*state.supply.lock(), 100);
     }
 
-    #[actix_web::test]
+    #[tokio::test]
     async fn test_sell_with_excess_volume() {
         let state = AppState::default();
-        let data = web::Data::new(state.clone());
 
         // Populate state bids with one element
         let mut bids = BTreeMap::new();
@@ -101,7 +96,7 @@ mod tests {
         bids.insert(5, queue);
         *state.bids.lock() = bids;
 
-        handle_sell(&data, 200).await;
+        handle_sell(&state, 200).await;
 
         assert_eq!(*state.supply.lock(), 100);
         assert!(state.bids.lock().is_empty());

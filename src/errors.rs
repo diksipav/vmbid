@@ -1,20 +1,35 @@
-use actix_web::{HttpResponse, ResponseError};
+use axum::{
+    Json,
+    http::StatusCode,
+    response::{IntoResponse, Response},
+};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum VmbidError {
     #[error("please provide username")]
     MissingUsername,
-
     #[error("username {0} not found")]
     NotFound(String),
 }
 
-impl ResponseError for VmbidError {
-    fn error_response(&self) -> HttpResponse {
-        match self {
-            VmbidError::MissingUsername => HttpResponse::BadRequest().body(self.to_string()),
-            VmbidError::NotFound(_) => HttpResponse::NotFound().body(self.to_string()),
-        }
+#[derive(serde::Serialize)]
+struct ErrorResponse {
+    message: String,
+}
+
+impl IntoResponse for VmbidError {
+    fn into_response(self) -> Response {
+        let status = match &self {
+            VmbidError::MissingUsername => StatusCode::BAD_REQUEST,
+            VmbidError::NotFound(_) => StatusCode::NOT_FOUND,
+        };
+        (
+            status,
+            Json(ErrorResponse {
+                message: self.to_string(),
+            }),
+        )
+            .into_response()
     }
 }

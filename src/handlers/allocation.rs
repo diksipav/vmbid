@@ -1,14 +1,19 @@
-use crate::errors::VmbidError;
-use crate::models::*;
-use crate::state::AppState;
-use actix_web::{HttpResponse, get, web};
+use axum::{
+    Json,
+    extract::{Query, State},
+};
 
-/// Returns the allocation for a given username.
+use crate::{errors::VmbidError, models::*, state::AppState};
+
+/// Returns allocation for a given username.
 pub async fn handle_allocation(
     state: &AppState,
     username: Option<&str>,
 ) -> Result<u64, VmbidError> {
     let username = username.ok_or(VmbidError::MissingUsername)?.trim();
+    if username.is_empty() {
+        return Err(VmbidError::MissingUsername);
+    }
 
     let allocations_guard = state.allocations.lock();
     allocations_guard
@@ -17,14 +22,10 @@ pub async fn handle_allocation(
         .ok_or_else(|| VmbidError::NotFound(username.to_string()))
 }
 
-#[get("/allocation")]
 pub async fn allocation(
-    state: web::Data<AppState>,
-    query: web::Query<AllocationQuery>,
-) -> Result<HttpResponse, VmbidError> {
-    let res = handle_allocation(&state, query.username.as_deref()).await?;
-
-    Ok(HttpResponse::Ok()
-        .content_type("text/plain")
-        .body(res.to_string()))
+    State(state): State<AppState>,
+    Query(query): Query<AllocationQuery>,
+) -> Result<Json<u64>, VmbidError> {
+    let allocation = handle_allocation(&state, query.username.as_deref()).await?;
+    Ok(Json(allocation))
 }
