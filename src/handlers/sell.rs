@@ -1,4 +1,7 @@
-use axum::extract::{Json, State};
+use axum::{
+    extract::{Json, State},
+    http::StatusCode,
+};
 use log::info;
 
 use crate::{models::*, state::AppState};
@@ -61,8 +64,9 @@ pub async fn handle_sell(state: &AppState, supply: u64) {
     }
 }
 
-pub async fn sell(State(state): State<AppState>, Json(payload): Json<SellRequest>) {
+pub async fn sell(State(state): State<AppState>, Json(payload): Json<SellRequest>) -> StatusCode {
     handle_sell(&state, payload.volume).await;
+    StatusCode::CREATED
 }
 
 #[cfg(test)]

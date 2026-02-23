@@ -1,6 +1,9 @@
 use std::{collections::BinaryHeap, sync::atomic::Ordering};
 
-use axum::extract::{Json, State};
+use axum::{
+    extract::{Json, State},
+    http::StatusCode,
+};
 use log::{error, info};
 
 use crate::{errors::VmbidError, models::*, state::AppState};
@@ -74,7 +77,7 @@ pub async fn handle_buy(
 pub async fn buy(
     State(state): State<AppState>,
     Json(payload): Json<BuyRequest>,
-) -> Result<(), VmbidError> {
+) -> Result<StatusCode, VmbidError> {
     let BuyRequest {
         username,
         volume,
@@ -83,7 +86,7 @@ pub async fn buy(
 
     handle_buy(&state, username, volume, price).await?;
 
-    Ok(())
+    Ok(StatusCode::CREATED)
 }
 
 #[cfg(test)]
