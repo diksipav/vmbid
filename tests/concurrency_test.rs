@@ -121,9 +121,7 @@ async fn test_concurrent_allocations_never_decrease() {
             tokio::time::sleep(tokio::time::Duration::from_millis(delay)).await;
 
             let username = format!("user{}", i % 3);
-            handle_buy(&state_clone, username.clone(), 50 * (i % 10), i % 10)
-                .await
-                .unwrap();
+            handle_buy(&state_clone, username.clone(), 50 * (i % 10), i % 10).await.unwrap();
         }));
 
         let state_clone = state.clone();
@@ -145,10 +143,7 @@ async fn test_concurrent_allocations_never_decrease() {
             let allocs = state_clone.state.allocations.lock();
             let mut history = history_clone.lock().unwrap();
             for (user, &allocation) in allocs.iter() {
-                history
-                    .entry(user.clone())
-                    .or_insert_with(Vec::new)
-                    .push(allocation);
+                history.entry(user.clone()).or_insert_with(Vec::new).push(allocation);
             }
         }
     });
