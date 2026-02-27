@@ -723,23 +723,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "project"
-version = "0.1.0"
-dependencies = [
- "axum",
- "env_logger",
- "log",
- "parking_lot",
- "proptest",
- "rand",
- "serde",
- "serde_json",
- "thiserror",
- "tokio",
- "validator",
-]
-
-[[package]]
 name = "proptest"
 version = "1.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1194,6 +1177,23 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "vmbid"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "env_logger",
+ "log",
+ "parking_lot",
+ "proptest",
+ "rand",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+ "validator",
 ]
 
 [[package]]

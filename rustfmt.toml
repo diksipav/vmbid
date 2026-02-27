@@ -1,5 +1,5 @@
 max_width = 100
-use_small_heuristics = "Max"
+use_small_heuristics = "Max" # bypass internal width heuristics and use max_width for wrapping
 
 imports_granularity = "Crate"
 group_imports = "StdExternalCrate"
