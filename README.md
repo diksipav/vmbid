@@ -91,6 +91,8 @@ cargo test --test property_test     # Property tests
 cargo test --test concurrency_test  # Concurrency tests
 ```
 
+**Note**: tests are messed up at the moment. They probably don't pass.
+
 ## Example Usage
 
 ```bash
