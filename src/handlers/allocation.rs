@@ -19,12 +19,8 @@ pub async fn handle_allocation(
     query.validate()?;
     let username = query.username;
 
-    let allocated = state
-        .allocations
-        .lock()
-        .get(&username)
-        .copied()
-        .ok_or_else(|| VmbidError::NotFound(username))?;
+    let allocated =
+        state.allocations.lock().get(&username).copied().ok_or(VmbidError::NotFound(username))?;
 
     Ok((StatusCode::OK, Json(AllocationResponse { allocated })))
 }

@@ -68,7 +68,7 @@ impl AppState {
     pub fn queue_bid(&self, username: &str, volume: u64, price: u64) {
         let seq = self.seq.fetch_add(1, Ordering::Relaxed);
         let bid = Bid { username: username.to_string(), volume, price, seq };
-        self.bids.lock().entry(price).or_insert_with(BinaryHeap::new).push(bid);
+        self.bids.lock().entry(price).or_default().push(bid);
 
         info!("queued bid: user={} volume={} price={} seq={}", username, volume, price, seq);
     }
