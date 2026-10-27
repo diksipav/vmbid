@@ -1,4 +1,8 @@
-use axum::{Json, extract::State, http::StatusCode};
+use axum::{
+    Json,
+    extract::{State, rejection::JsonRejection},
+    http::StatusCode,
+};
 use validator::Validate;
 
 use crate::{errors::Result, models::*, state::AppState};
@@ -6,16 +10,13 @@ use crate::{errors::Result, models::*, state::AppState};
 /// Allocate volume to the user by matching with existing supply, create bids from remainder.
 pub async fn handle_buy(
     State(state): State<AppState>,
-    Json(payload): Json<BuyRequest>,
+    payload: std::result::Result<Json<BuyRequest>, JsonRejection>,
 ) -> Result<(StatusCode, Json<BuyResponse>)> {
+    let Json(payload) = payload?;
     payload.validate()?;
     let BuyRequest { username, volume, price } = payload;
 
-    let allocated = state.consume_supply_and_allocate(username.as_str(), volume);
-    let remaining = volume - allocated;
-    if remaining > 0 {
-        state.queue_bid(username.as_str(), remaining, price);
-    }
+    let allocated = state.buy(username.as_str(), volume, price);
 
-    Ok((StatusCode::OK, Json(BuyResponse { allocated, queued: remaining })))
+    Ok((StatusCode::OK, Json(BuyResponse { allocated, queued: volume - allocated })))
 }

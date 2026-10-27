@@ -1,5 +1,6 @@
 use axum::{
     Json,
+    extract::rejection::{JsonRejection, QueryRejection},
     http::StatusCode,
     response::{IntoResponse, Response},
 };
@@ -12,6 +13,14 @@ pub enum VmbidError {
     NotFound(String),
     #[error("{0}")]
     Validation(#[from] ValidationErrors),
+    #[error("supply limit exceeded")]
+    SupplyOverflow,
+    /// Body extraction failed (malformed JSON, missing field, wrong content type).
+    #[error(transparent)]
+    Json(#[from] JsonRejection),
+    /// Query string extraction failed (e.g. missing username).
+    #[error(transparent)]
+    Query(#[from] QueryRejection),
 }
 
 /// JSON error response body
@@ -24,7 +33,12 @@ impl IntoResponse for VmbidError {
     fn into_response(self) -> Response {
         let status = match &self {
             VmbidError::NotFound(_) => StatusCode::NOT_FOUND,
-            VmbidError::Validation(_) => StatusCode::UNPROCESSABLE_ENTITY,
+            VmbidError::Validation(_) | VmbidError::SupplyOverflow => {
+                StatusCode::UNPROCESSABLE_ENTITY
+            }
+            // keep axum's status codes (400/415/422), only the body becomes JSON
+            VmbidError::Json(e) => e.status(),
+            VmbidError::Query(e) => e.status(),
         };
 
         let body = ErrorResponse { message: self.to_string() };

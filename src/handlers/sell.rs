@@ -1,5 +1,5 @@
 use axum::{
-    extract::{Json, State},
+    extract::{Json, State, rejection::JsonRejection},
     http::StatusCode,
 };
 use validator::Validate;
@@ -10,14 +10,12 @@ use crate::{errors::Result, models::*, state::AppState};
 /// Update allocations and store leftovers in global supply.
 pub async fn handle_sell(
     State(state): State<AppState>,
-    Json(payload): Json<SellRequest>,
+    payload: std::result::Result<Json<SellRequest>, JsonRejection>,
 ) -> Result<(StatusCode, Json<SellResponse>)> {
+    let Json(payload) = payload?;
     payload.validate()?;
 
-    let remaining = state.match_sell_with_bids(payload.volume);
-    if remaining > 0 {
-        state.add_supply(remaining);
-    }
+    let allocated = state.sell(payload.volume)?;
 
-    Ok((StatusCode::OK, Json(SellResponse { allocated: payload.volume - remaining })))
+    Ok((StatusCode::OK, Json(SellResponse { allocated })))
 }

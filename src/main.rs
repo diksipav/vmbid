@@ -1,16 +1,13 @@
-mod errors;
-mod handlers;
-mod models;
-mod state;
-
 use axum::{
     Router,
     routing::{get, post},
 };
 use env_logger::Env;
-use handlers::{allocation::handle_allocation, buy::handle_buy, sell::handle_sell};
 use log::info;
-use state::AppState;
+use vmbid::{
+    handlers::{allocation::handle_allocation, buy::handle_buy, sell::handle_sell},
+    state::AppState,
+};
 
 #[tokio::main]
 async fn main() {
